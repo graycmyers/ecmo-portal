@@ -1307,24 +1307,24 @@ const DEMO_FORM_DATA=[
   },
 ];
 
-function IntakeForm({addProject,navigate,openDoc}){
+function IntakeForm({addProject,navigate,openDoc,demoIndex,setDemoIndex,demoLoaded,setDemoLoaded}){
   const [form,setForm]=useState(makeInitialForm);
   const [activeSection,setActiveSection]=useState("requestor");
   const [submitted,setSubmitted]=useState(false);
   const [submittedId,setSubmittedId]=useState(null);
-  const [demoIndex,setDemoIndex]=useState(0);
   const [prevForm,setPrevForm]=useState(null);// for undo
   const sectionRefs=useRef({});
   const update=(k,v)=>setForm(f=>({...f,[k]:v}));
   const loadDemo=()=>{
-    if(demoIndex>=DEMO_FORM_DATA.length)return;
+    if(demoIndex>=DEMO_FORM_DATA.length||demoLoaded)return;
     setPrevForm(form);
     const d=DEMO_FORM_DATA[demoIndex];
     const cab=deriveCabReview(d.changeType);
     setForm({...makeInitialForm(),...d,cabReview:cab,changeId:form.changeId,submissionDate:form.submissionDate});
     setDemoIndex(i=>i+1);
+    setDemoLoaded(true);
   };
-  const undoDemo=()=>{if(prevForm){setForm(prevForm);setPrevForm(null);setDemoIndex(i=>Math.max(0,i-1));}};
+  const undoDemo=()=>{if(prevForm){setForm(prevForm);setPrevForm(null);setDemoIndex(i=>Math.max(0,i-1));setDemoLoaded(false);}};
 
   // Smart update: when changeType changes, auto-set CAB review and suggest priority
   const updateChangeType=v=>{
@@ -1360,7 +1360,7 @@ function IntakeForm({addProject,navigate,openDoc}){
         {id:"biz",role:"Business Approver",name:form.businessApprover,dept:form.department,tier:1,status:"pending",approvedAt:null,questions:[]},
       ],
     };
-    addProject(newProject);setSubmittedId(newProject.id);setSubmitted(true);
+    addProject(newProject);setSubmittedId(newProject.id);setDemoLoaded(false);setSubmitted(true);
   };
 
   if(submitted) return <div style={{minHeight:"calc(100vh - 44px)",background:C.bgMid,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',sans-serif"}}>
@@ -1375,7 +1375,7 @@ function IntakeForm({addProject,navigate,openDoc}){
         <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>Open your ADKAR plan, review each section, click <strong>Agree to section</strong> for each one, then send to your approvers. All sections must be agreed before approvals can begin.</div>
       </div>
       <div style={{display:"flex",gap:12,justifyContent:"center"}}>
-        <button onClick={()=>{setForm(makeInitialForm());setSubmitted(false);setSubmittedId(null);}} style={{padding:"10px 20px",background:C.white,color:C.textMid,border:`1px solid ${C.borderMid}`,borderRadius:2,fontSize:13,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif"}}>Submit Another Request</button>
+        <button onClick={()=>{setForm(makeInitialForm());setPrevForm(null);setSubmitted(false);setSubmittedId(null);}} style={{padding:"10px 20px",background:C.white,color:C.textMid,border:`1px solid ${C.borderMid}`,borderRadius:2,fontSize:13,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif"}}>Submit Another Request</button>
         <button onClick={()=>navigate("portfolio",{projectId:submittedId})} style={{padding:"10px 24px",background:C.purple,color:C.white,border:"none",borderRadius:2,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif",boxShadow:"0 2px 8px rgba(92,45,145,0.3)"}}>View My ADKAR Plan →</button>
       </div>
     </div>
@@ -1400,11 +1400,12 @@ function IntakeForm({addProject,navigate,openDoc}){
             {/* Demo banner */}
             <div style={{background:"#fffbeb",border:`1px solid #f59e0b`,borderRadius:2,padding:"10px 14px",maxWidth:290,textAlign:"center"}}>
               <div style={{fontSize:11,color:"#92400e",fontWeight:700,marginBottom:7}}>Demo use only — fills form with sample data</div>
+              {demoLoaded&&<div style={{fontSize:11,color:"#92400e",background:"#fef3c7",border:`1px solid #f59e0b`,borderRadius:2,padding:"4px 8px",marginBottom:7}}>Submit or undo the current example before loading another.</div>}
               <div style={{display:"flex",gap:6,justifyContent:"center",alignItems:"center"}}>
                 {prevForm&&<button onClick={undoDemo} style={{padding:"4px 10px",fontSize:11,color:"#92400e",background:"#fef3c7",border:`1px solid #f59e0b`,borderRadius:2,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif",fontWeight:600}}>↩ Undo</button>}
-                <button onClick={loadDemo} disabled={demoIndex>=DEMO_FORM_DATA.length}
-                  style={{padding:"5px 14px",fontSize:12,fontWeight:700,color:demoIndex<DEMO_FORM_DATA.length?C.white:C.textMuted,background:demoIndex<DEMO_FORM_DATA.length?"#d97706":"#e5e7eb",border:"none",borderRadius:2,cursor:demoIndex<DEMO_FORM_DATA.length?"pointer":"default",fontFamily:"'Segoe UI',sans-serif"}}>
-                  Load Example ({Math.max(0,DEMO_FORM_DATA.length-demoIndex)} of {DEMO_FORM_DATA.length} left)
+                <button onClick={loadDemo} disabled={demoIndex>=DEMO_FORM_DATA.length||demoLoaded}
+                  style={{padding:"5px 14px",fontSize:12,fontWeight:700,color:(demoIndex<DEMO_FORM_DATA.length&&!demoLoaded)?C.white:C.textMuted,background:(demoIndex<DEMO_FORM_DATA.length&&!demoLoaded)?"#d97706":"#e5e7eb",border:"none",borderRadius:2,cursor:(demoIndex<DEMO_FORM_DATA.length&&!demoLoaded)?"pointer":"default",fontFamily:"'Segoe UI',sans-serif"}}>
+                  {demoLoaded?"Example loaded…":`Load Example (${Math.max(0,DEMO_FORM_DATA.length-demoIndex)} of ${DEMO_FORM_DATA.length} left)`}
                 </button>
               </div>
             </div>
@@ -1977,6 +1978,8 @@ export default function App(){
   const [page,setPage]=useState("home");
   const [pageParams,setPageParams]=useState({});
   const [slideDoc,setSlideDoc]=useState(null);
+  const [demoIndex,setDemoIndex]=useState(0);
+  const [demoLoaded,setDemoLoaded]=useState(false);
   const top=useRef(null);
 
   const updateProject=(id,fn)=>setProjects(prev=>prev.map(p=>p.id===id?fn(p):p));
@@ -1993,7 +1996,7 @@ export default function App(){
     <Nav current={page} navigate={navigate} totalProjects={projects.length}/>
     {page==="home"&&<LandingPage navigate={navigate} openDoc={openDoc}/>}
     {page==="dashboard"&&<Dashboard projects={activeProjects} navigate={navigate} openDoc={openDoc}/>}
-    {page==="intake"&&<IntakeForm addProject={addProject} navigate={navigate} openDoc={openDoc}/>}
+    {page==="intake"&&<IntakeForm addProject={addProject} navigate={navigate} openDoc={openDoc} demoIndex={demoIndex} setDemoIndex={setDemoIndex} demoLoaded={demoLoaded} setDemoLoaded={setDemoLoaded}/>}
     {page==="portfolio"&&<Portfolio projects={projects} updateProject={updateProject} navigate={navigate} archiveProject={archiveProject} restoreProject={restoreProject} archivedIds={archivedIds} initialProjectId={pageParams.projectId} initialFilter={pageParams.filter}/>}
     {slideDoc&&<SlidePanel docKey={slideDoc} onClose={()=>setSlideDoc(null)}/>}
   </div>;
